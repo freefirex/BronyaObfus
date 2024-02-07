@@ -64,6 +64,32 @@ void OutputIR(Function *Func) {
   }
 }
 
+std::string getSourceFileName(Module &M) {
+  static int count = 1;
+  srand(time(nullptr) + count);
+  std::string unknown{"unknown"};
+  unknown.append(std::to_string(rand()));
+    if (M.getSourceFileName().empty()) {
+        return unknown;
+    }
+    return M.getSourceFileName();
+}
+
+std::string generateUniqueName(const std::string &baseName) {
+    SHA1 sha1;
+    sha1.update(baseName);
+    auto digest = sha1.final();
+
+    std::stringstream ss;
+    ss << std::hex;
+    for (size_t i = 0; i < digest.size(); i++) {
+        ss << std::setw(2) << std::setfill('0') << static_cast<unsigned>(digest[i] & 0xFF);
+    }
+    return baseName + "_" + ss.str();
+}
+
+
+
 // std::string GenHashName(GlobalVariable *GV) {
 //   Module &M = *GV->getParent();
 //   std::string FuncName =
@@ -107,6 +133,7 @@ Function *createDecodeFunc(Module &M) {
       false);
   // std::string FuncName = GenHashName(GS.Var);
   std::string FuncName = "docode";
+  FuncName.append(generateUniqueName(getSourceFileName(M)));
   FunctionCallee Callee = M.getOrInsertFunction(FuncName, FuncType);
   Function *Func = cast<Function>(Callee.getCallee());
   Func->setCallingConv(CallingConv::C);
@@ -197,8 +224,10 @@ Function *createDecodeStubFunc(Module &M,
                                std::vector<GlobalString *> &GlobalStrings,
                                Function *DecodeFunc) {
   auto &Ctx = M.getContext();
+  std::string stubname{"decode_stub"};
+  stubname.append(generateUniqueName(getSourceFileName(M)));
   FunctionCallee DecodeStubCallee =
-      M.getOrInsertFunction("decode_stub", Type::getVoidTy(Ctx));
+      M.getOrInsertFunction(stubname, Type::getVoidTy(Ctx));
   Function *DecodeStubFunc = cast<Function>(DecodeStubCallee.getCallee());
   DecodeStubFunc->setCallingConv(CallingConv::C);
 
