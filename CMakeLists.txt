@@ -1,30 +1,45 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.13.4)
+project(llvm-obf-passes)
 
-project(BronyaObfus)
+#===============================================================================
+# 1. LOAD LLVM CONFIGURATION
+#===============================================================================
+# Set this to a valid LLVM installation dir
+set(LT_LLVM_INSTALL_DIR "" CACHE PATH "LLVM installation directory")
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /utf-8 /MD /std:c++latest")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /utf-8 /MDd /std:c++latest")
+# Add the location of LLVMConfig.cmake to CMake search paths (so that
+# find_package can locate it)
+list(APPEND CMAKE_PREFIX_PATH "${LT_LLVM_INSTALL_DIR}/lib/cmake/llvm/")
 
-set(LLVM_BUILD_DIR "E:/Code/windows/Arkari/build")
-set(LLVM_SRC_DIR "E:/Code/windows/Arkari/llvm")
+# FIXME: This is a warkaround for #25. Remove once resolved and use
+find_package(LLVM 17 REQUIRED CONFIG)
 
-aux_source_directory(./src src)
-set(srcs ${src})
+# HelloWorld includes headers from LLVM - update the include paths accordingly
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
-add_library(BronyaObfus SHARED ${srcs} export.def)
+#===============================================================================
+# 2. LLVM-TUTOR BUILD CONFIGURATION
+#===============================================================================
+# Use the same C++ standard as LLVM does
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 
-message("LLVM_BUILD_DIR: ${LLVM_BUILD_DIR}")
-message("LLVM_SRC_DIR: ${LLVM_SRC_DIR}")
+# LLVM is normally built without RTTI. Be consistent with that.
+if(NOT LLVM_ENABLE_RTTI)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+endif()
 
-include_directories("${LLVM_BUILD_DIR}/include")
-include_directories("${LLVM_SRC_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
-set(mylibdir "${LLVM_BUILD_DIR}/Release/lib")
+#===============================================================================
+# 3. ADD THE TARGET
+#===============================================================================
+add_library(BogusControlFlow SHARED src/BogusControlFlow.cpp src/CryptoUtils.cpp)
+add_library(Flattening SHARED src/Flattening.cpp src/CryptoUtils.cpp)
+add_library(IndirectCall SHARED src/IndirectCall.cpp src/CryptoUtils.cpp)
+add_library(MBAObfuscation SHARED src/MBAObfuscation.cpp src/CryptoUtils.cpp)
+add_library(StringObfuscation SHARED src/StringObfuscation.cpp src/CryptoUtils.cpp)
 
-file(GLOB LIBS "${mylibdir}/LLVM*.lib")
-
-set_target_properties(BronyaObfus PROPERTIES LINKER_LANGUAGE CXX)
-
-target_link_libraries(BronyaObfus PUBLIC ${LIBS})
+# Allow undefined symbols in shared objects on Darwin (this is the default
+# behaviour on Linux)
+target_link_libraries(Flattening
+  "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")

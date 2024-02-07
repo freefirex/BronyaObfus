@@ -152,3 +152,23 @@ PreservedAnalyses IndirectCallPass::run(Function &F,
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();
 }
+
+llvm::PassPluginLibraryInfo getIndirectCallPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "IndirectCall", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+          PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
+                                      OptimizationLevel Level) {
+           FunctionPassManager FPM;
+           FPM.addPass(IndirectCallPass());
+           MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+                                      });
+          }};
+}
+
+// This is the core interface for pass plugins. It guarantees that 'opt' will
+// be able to recognize HelloWorld when added to the pass pipeline on the
+// command line, i.e. via '-passes=hello-world'
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getIndirectCallPluginInfo();
+}

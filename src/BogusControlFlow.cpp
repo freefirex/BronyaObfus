@@ -18,7 +18,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RandomNumberGenerator.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/TargetParser/Triple.h"
+//#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
@@ -35,11 +35,11 @@ static cl::opt<bool>
                             cl::desc("BronyaObfus - BogusControlFlow"));
 
 static cl::opt<int>
-    ObfuTimes("bcf-times", cl::init(3),
+    ObfuTimes("bcf-times", cl::init(1),
               cl::desc("Run BogusControlFlow pass <bcf-times> time(s)"));
 
 static cl::opt<int> ObfuProbRate(
-    "bcf-prob", cl::init(90),
+    "bcf-prob", cl::init(15),
     cl::desc("Choose the probability <bcf-prob> for each basic blocks will "
              "be obfuscated by BCF Pass"));
 
@@ -306,4 +306,24 @@ PreservedAnalyses BogusControlFlowPass::run(Function &F,
   if (!runBogusControlFlow(F))
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();
+}
+
+llvm::PassPluginLibraryInfo getBogusControlFlowPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "BogusControlFlow", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+          PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
+                                      OptimizationLevel Level) {
+           FunctionPassManager FPM;
+           FPM.addPass(BogusControlFlowPass());
+           MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+                                      });
+          }};
+}
+
+// This is the core interface for pass plugins. It guarantees that 'opt' will
+// be able to recognize HelloWorld when added to the pass pipeline on the
+// command line, i.e. via '-passes=hello-world'
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getBogusControlFlowPluginInfo();
 }

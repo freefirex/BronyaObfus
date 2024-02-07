@@ -23,12 +23,12 @@ static cl::opt<int>
               cl::desc("Run MBASubstitute pass <mba-times> time(s)"));
 
 static cl::opt<int> ObfuProbRate(
-    "mba-prob", cl::init(100),
+    "mba-prob", cl::init(20),
     cl::desc("Choose the probability <mba-prob> for each basic blocks will "
              "be obfuscated by MBA Pass"));
 
 static cl::opt<int>
-    TermsNumber("linear-mba-terms", cl::init(10),
+    TermsNumber("linear-mba-terms", cl::init(4),
                 cl::desc("Choose <linear-mba-terms> boolean exprs to construct "
                          "the linear MBA expr."));
 
@@ -388,4 +388,24 @@ PreservedAnalyses MBAObfuscationPass::run(Function &F,
   if (!runMBAObfuscation(F))
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();
+}
+
+llvm::PassPluginLibraryInfo getMBAObfuscationPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "MBAObfuscation", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+          PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
+                                      OptimizationLevel Level) {
+           FunctionPassManager FPM;
+           FPM.addPass(MBAObfuscationPass());
+           MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+                                      });
+          }};
+}
+
+// This is the core interface for pass plugins. It guarantees that 'opt' will
+// be able to recognize HelloWorld when added to the pass pipeline on the
+// command line, i.e. via '-passes=hello-world'
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getMBAObfuscationPluginInfo();
 }
