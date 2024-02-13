@@ -1,5 +1,10 @@
 # BronyaObfus
 
+## Fork changes
+
+* Passes split up to be usable individually
+* Attempted to make string obf pass work when multiple .obj files are present
+
 在 Windows 下整合了 [Pluto-Obfuscator](https://github.com/bluesadi/Pluto-Obfuscator) 和 [Arkari](https://github.com/KomiMoe/Arkari) 的部分混淆
 
 ## 编译
